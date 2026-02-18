@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+ANTHROPIC_API_KEY = os.getenv("claude-translator", "") or os.getenv("ANTHROPIC_API_KEY", "")
 SOURCE_FOLDER_ID = os.getenv("SOURCE_FOLDER_ID", "1XBs5PdhcUSgFr2oBsrpt5UQgwHkfefAo")
 DESTINATION_FOLDER_ID = os.getenv("DESTINATION_FOLDER_ID", "1kUsgJwhunnz6V85blXnyBKAvKKTRnU0c")
 GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "service_account.json")

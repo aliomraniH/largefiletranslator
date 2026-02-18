@@ -36,6 +36,34 @@ def translate_text(client: anthropic.Anthropic, text: str) -> str:
     return message.content[0].text
 
 
+def translate_text_logged(client: anthropic.Anthropic, text: str) -> dict:
+    """Translate text and return detailed response info for logging."""
+    if not text.strip():
+        return {"text": "", "model": CLAUDE_MODEL, "input_tokens": 0, "output_tokens": 0}
+
+    message = client.messages.create(
+        model=CLAUDE_MODEL,
+        max_tokens=4096,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"Translate the following text from {SOURCE_LANGUAGE} to {TARGET_LANGUAGE}. "
+                    f"Preserve the original formatting, paragraph structure, and meaning as closely as possible. "
+                    f"Only output the translated text, nothing else.\n\n"
+                    f"---\n{text}\n---"
+                ),
+            }
+        ],
+    )
+    return {
+        "text": message.content[0].text,
+        "model": message.model,
+        "input_tokens": message.usage.input_tokens,
+        "output_tokens": message.usage.output_tokens,
+    }
+
+
 def translate_pages(pages: list[dict]) -> list[dict]:
     """Translate all extracted pages, chunking large pages as needed.
 

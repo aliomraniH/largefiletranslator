@@ -64,6 +64,7 @@ def upload_file(service, local_path: str, folder_id: str, filename: str = None) 
         body=file_metadata,
         media_body=media,
         fields="id, name, webViewLink",
+        supportsAllDrives=True,
     ).execute()
 
     print(f"  Uploaded: {file.get('name')} (ID: {file.get('id')})")

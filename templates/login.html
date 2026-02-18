@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - LargeFileTranslator</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .login-card { background: #fff; border-radius: 12px; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); width: 100%; max-width: 400px; }
+        h1 { font-size: 24px; margin-bottom: 8px; color: #1a1a2e; }
+        .subtitle { color: #666; margin-bottom: 24px; font-size: 14px; }
+        label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: #444; }
+        input[type="password"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; outline: none; transition: border 0.2s; }
+        input[type="password"]:focus { border-color: #4361ee; }
+        .btn { display: block; width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 15px; font-weight: 500; cursor: pointer; background: #4361ee; color: #fff; margin-top: 16px; transition: background 0.2s; }
+        .btn:hover { background: #3a56d4; }
+        .error { color: #dc2626; font-size: 14px; margin-top: 12px; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>LargeFileTranslator</h1>
+        <p class="subtitle">Enter password to access the translator</p>
+        <form method="POST">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required autofocus>
+            <button type="submit" class="btn">Login</button>
+            {% if error %}
+            <p class="error">{{ error }}</p>
+            {% endif %}
+        </form>
+    </div>
+</body>
+</html>

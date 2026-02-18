@@ -11,3 +11,6 @@ token.json
 *.pdf
 venv/
 .venv/
+temp/
+output/
+uploads/

@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LargeFileTranslator</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; padding: 32px 20px; }
+        .header-inner { max-width: 900px; margin: 0 auto; }
+        .header h1 { font-size: 26px; margin-bottom: 4px; font-weight: 700; }
+        .header p { color: rgba(255,255,255,0.7); font-size: 14px; }
+        .container { max-width: 900px; margin: -20px auto 40px; padding: 0 20px; position: relative; z-index: 1; }
+        .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .card h2 { font-size: 17px; margin-bottom: 16px; color: #1a1a2e; display: flex; align-items: center; gap: 8px; }
+        .tabs { display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; }
+        .tab { padding: 12px 20px; font-size: 14px; font-weight: 500; cursor: pointer; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none; }
+        .tab:hover { color: #4361ee; }
+        .tab.active { color: #4361ee; border-bottom-color: #4361ee; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+        .btn-primary { background: #4361ee; color: #fff; }
+        .btn-primary:hover { background: #3a56d4; }
+        .btn-primary:disabled { background: #a0aec0; cursor: not-allowed; }
+        .btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+        .btn-secondary:hover { background: #e5e7eb; }
+        .btn-download { background: #10b981; color: #fff; padding: 8px 14px; font-size: 13px; }
+        .btn-download:hover { background: #059669; }
+        .btn-danger { background: #ef4444; color: #fff; padding: 8px 14px; font-size: 13px; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+        .upload-zone { border: 2px dashed #d1d5db; border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafbfc; }
+        .upload-zone:hover, .upload-zone.dragover { border-color: #4361ee; background: #eef2ff; }
+        .upload-zone svg { margin-bottom: 8px; color: #9ca3af; }
+        .upload-zone p { color: #666; font-size: 14px; }
+        .upload-zone .hint { color: #9ca3af; font-size: 12px; margin-top: 4px; }
+
+        .file-list { list-style: none; }
+        .file-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
+        .file-item:last-child { border-bottom: none; }
+        .file-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+        .file-icon { width: 36px; height: 36px; background: #fef2f2; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .file-icon.translated { background: #d1fae5; }
+        .file-details { min-width: 0; }
+        .file-name { font-weight: 500; font-size: 14px; word-break: break-all; }
+        .file-meta { color: #9ca3af; font-size: 12px; margin-top: 2px; }
+        .file-actions { display: flex; gap: 8px; flex-shrink: 0; margin-left: 12px; }
+
+        .checkbox-wrap { display: flex; align-items: center; }
+        .checkbox-wrap input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: #4361ee; }
+
+        .staged-files { margin-top: 16px; }
+        .staged-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f9fafb; border-radius: 8px; margin-bottom: 6px; }
+        .staged-name { font-size: 14px; font-weight: 500; }
+        .remove-btn { background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 18px; padding: 0 4px; }
+        .remove-btn:hover { color: #ef4444; }
+
+        .status-bar { display: flex; align-items: center; gap: 12px; padding: 16px; background: #fffbeb; border-radius: 10px; margin-bottom: 16px; border: 1px solid #fde68a; }
+        .status-bar.done { background: #ecfdf5; border-color: #a7f3d0; }
+        .status-bar .spinner { width: 20px; height: 20px; border: 2px solid #fbbf24; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+        .status-bar.done .spinner { display: none; }
+        .status-text { font-size: 14px; color: #92400e; }
+        .status-bar.done .status-text { color: #065f46; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .progress-bar { width: 100%; height: 6px; background: #e5e7eb; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #4361ee; border-radius: 3px; transition: width 0.3s; }
+
+        .log-box { background: #1a1a2e; color: #a0f0a0; border-radius: 8px; padding: 14px; margin-top: 12px; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; max-height: 250px; overflow-y: auto; }
+        .log-line { padding: 1px 0; white-space: pre-wrap; word-break: break-all; }
+
+        .empty-state { text-align: center; padding: 32px; color: #9ca3af; }
+        .empty-state svg { margin-bottom: 8px; }
+        .empty-state p { font-size: 14px; }
+
+        .drive-loading { text-align: center; padding: 40px; color: #666; }
+        .drive-loading .spinner { width: 24px; height: 24px; border: 2px solid #d1d5db; border-top-color: #4361ee; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+
+        .claude-log-card { border-left: 3px solid #8b5cf6; }
+        .claude-log-card h2 svg { color: #8b5cf6; }
+        .toggle-btn { background: none; border: none; cursor: pointer; color: #666; font-size: 13px; margin-left: auto; display: flex; align-items: center; gap: 4px; }
+        .toggle-btn:hover { color: #4361ee; }
+        .claude-entries { max-height: 400px; overflow-y: auto; }
+        .claude-entry { padding: 10px 12px; border-radius: 8px; margin-bottom: 6px; font-size: 13px; font-family: 'SF Mono', Monaco, monospace; }
+        .claude-entry.success { background: #ecfdf5; border: 1px solid #a7f3d0; }
+        .claude-entry.error { background: #fef2f2; border: 1px solid #fecaca; }
+        .claude-entry.sending { background: #fffbeb; border: 1px solid #fde68a; }
+        .claude-entry-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+        .claude-timestamp { color: #9ca3af; font-size: 11px; }
+        .claude-label { font-weight: 600; color: #1a1a2e; }
+        .claude-badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+        .claude-badge.success { background: #d1fae5; color: #065f46; }
+        .claude-badge.error { background: #fecaca; color: #991b1b; }
+        .claude-badge.sending { background: #fef3c7; color: #92400e; }
+        .claude-details { display: flex; gap: 16px; color: #6b7280; font-size: 12px; flex-wrap: wrap; }
+        .claude-detail { display: flex; align-items: center; gap: 3px; }
+        .claude-error-msg { color: #dc2626; font-size: 12px; margin-top: 4px; word-break: break-all; }
+        .claude-summary { display: flex; gap: 16px; padding: 10px 12px; background: #f3f0ff; border-radius: 8px; margin-bottom: 10px; font-size: 13px; color: #5b21b6; flex-wrap: wrap; }
+        .claude-summary-item { display: flex; align-items: center; gap: 4px; }
+
+        .cost-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .cost-table th { text-align: left; padding: 10px 12px; background: #f0fdf4; color: #065f46; font-weight: 600; border-bottom: 2px solid #a7f3d0; }
+        .cost-table td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; }
+        .cost-table tr:last-child td { border-bottom: none; }
+        .cost-table .cost-value { font-family: 'SF Mono', Monaco, monospace; font-weight: 600; color: #059669; }
+        .cost-table .cost-total-row { background: #f0fdf4; font-weight: 600; }
+        .cost-table .cost-total-row .cost-value { color: #047857; font-size: 15px; }
+        .cost-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+        .cost-badge.completed { background: #d1fae5; color: #065f46; }
+        .cost-badge.in_progress { background: #fef3c7; color: #92400e; }
+        .cost-badge.error { background: #fecaca; color: #991b1b; }
+
+        .cost-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+        .cost-summary-card { background: #f9fafb; border-radius: 10px; padding: 14px; border: 1px solid #e5e7eb; }
+        .cost-summary-label { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .cost-summary-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 2px 0; }
+        .cost-summary-row span:last-child { font-family: 'SF Mono', Monaco, monospace; }
+        .cost-grand-total { font-weight: 700; color: #059669; border-top: 2px solid #059669; padding-top: 6px; margin-top: 6px; font-size: 14px; }
+        .cost-details-panel { margin-top: 12px; padding: 16px; background: #f9fafb; border-radius: 10px; border: 1px solid #e5e7eb; }
+
+        @media (max-width: 768px) {
+            .cost-summary-grid { grid-template-columns: 1fr; }
+        }
+
+        .select-all-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; margin-bottom: 4px; }
+        .select-all-bar label { font-size: 13px; color: #666; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+
+        .action-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb; }
+        .selected-count { font-size: 13px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-inner">
+            <h1>LargeFileTranslator</h1>
+            <p>Translate PDF documents from French to English using Claude AI</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="status-section" style="display: none;">
+            <div class="card">
+                <div id="status-bar" class="status-bar">
+                    <div class="spinner"></div>
+                    <div style="flex:1">
+                        <div class="status-text" id="status-text">Translating...</div>
+                        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+                    </div>
+                </div>
+                <div class="log-box" id="log-box"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Select Files to Translate
+            </h2>
+
+            <div class="tabs">
+                <button class="tab active" data-tab="upload" onclick="switchTab('upload')">
+                    Upload PDF
+                </button>
+                <button class="tab" data-tab="drive" onclick="switchTab('drive')">
+                    Google Drive
+                </button>
+            </div>
+
+            <div id="tab-upload" class="tab-content active">
+                <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <p>Click to browse or drag & drop PDF files here</p>
+                    <p class="hint">Supports PDF files up to 100 MB</p>
+                </div>
+                <input type="file" id="file-input" accept=".pdf" multiple style="display:none" onchange="handleFiles(this.files)">
+
+                <div id="staged-uploads" class="staged-files" style="display:none;"></div>
+
+                <div id="upload-action" class="action-bar" style="display:none;">
+                    <span class="selected-count" id="upload-count">0 files selected</span>
+                    <button class="btn btn-primary" onclick="translateUploaded()">Translate Selected</button>
+                </div>
+            </div>
+
+            <div id="tab-drive" class="tab-content">
+                <div id="drive-loading" class="drive-loading">
+                    <div class="spinner"></div>
+                    <p>Loading files from Google Drive...</p>
+                </div>
+                <div id="drive-content" style="display:none;">
+                    <div class="select-all-bar">
+                        <label><input type="checkbox" id="select-all-drive" onchange="toggleAllDrive(this.checked)"> Select all</label>
+                        <button class="btn btn-secondary btn-sm" onclick="refreshDrive()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                            Refresh
+                        </button>
+                    </div>
+                    <ul class="file-list" id="drive-files"></ul>
+                    <div id="drive-empty" class="empty-state" style="display:none;">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        <p>No PDF files found in the Google Drive source folder.</p>
+                    </div>
+                </div>
+                <div id="drive-error" style="display:none; padding: 20px; text-align: center; color: #dc2626; font-size: 14px;"></div>
+
+                <div id="drive-action" class="action-bar" style="display:none;">
+                    <span class="selected-count" id="drive-count">0 files selected</span>
+                    <button class="btn btn-primary" onclick="translateDrive()">Translate Selected</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="cost-report-section" class="card" style="display:none; border-left: 3px solid #059669;">
+            <h2>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Translation Cost Report
+            </h2>
+            <div id="cost-report-content"></div>
+        </div>
+
+        <div id="claude-log-section" class="card claude-log-card" style="display:none;">
+            <h2>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                Claude API Log
+                <button class="toggle-btn" id="claude-toggle" onclick="toggleClaudeLog()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    Hide
+                </button>
+            </h2>
+            <div id="claude-summary" class="claude-summary" style="display:none;"></div>
+            <div id="claude-entries" class="claude-entries"></div>
+            <div id="claude-empty" class="empty-state">
+                <p>No Claude API calls yet. Start a translation to see interactions here.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Translated Files
+            </h2>
+            <ul class="file-list" id="translated-files">
+                {% if files %}
+                    {% for file in files %}
+                    <li class="file-item">
+                        <div class="file-info">
+                            <div class="file-icon translated">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            </div>
+                            <div class="file-details">
+                                <div class="file-name">{{ file.name }}</div>
+                                <div class="file-meta">{{ file.size }}</div>
+                            </div>
+                        </div>
+                        <div class="file-actions">
+                            <a href="/download/{{ file.name }}" class="btn btn-download">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Download
+                            </a>
+                        </div>
+                    </li>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state" id="no-files">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <p>No translated files yet</p>
+                    </div>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let uploadedFiles = [];
+        let driveFiles = [];
+        let statusInterval = null;
+        let claudeLogVisible = true;
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+
+            if (tab === 'drive' && driveFiles.length === 0) {
+                loadDriveFiles();
+            }
+        }
+
+        const uploadZone = document.getElementById('upload-zone');
+        uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        function handleFiles(files) {
+            for (const file of files) {
+                if (!file.name.endsWith('.pdf')) continue;
+                if (uploadedFiles.find(f => f.name === file.name)) continue;
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                fetch('/upload', { method: 'POST', body: formData })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.error) { alert(data.error); return; }
+                        uploadedFiles.push({ name: data.filename, size: file.size });
+                        renderStagedUploads();
+                    });
+            }
+        }
+
+        function renderStagedUploads() {
+            const container = document.getElementById('staged-uploads');
+            const actionBar = document.getElementById('upload-action');
+
+            if (uploadedFiles.length === 0) {
+                container.style.display = 'none';
+                actionBar.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'block';
+            actionBar.style.display = 'flex';
+            document.getElementById('upload-count').textContent = `${uploadedFiles.length} file(s) ready`;
+
+            container.innerHTML = uploadedFiles.map((f, i) => `
+                <div class="staged-item">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="file-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        </div>
+                        <span class="staged-name">${f.name}</span>
+                        <span style="color:#9ca3af;font-size:12px">${(f.size / 1024 / 1024).toFixed(2)} MB</span>
+                    </div>
+                    <button class="remove-btn" onclick="removeUploaded(${i})">&times;</button>
+                </div>
+            `).join('');
+        }
+
+        function removeUploaded(index) {
+            uploadedFiles.splice(index, 1);
+            renderStagedUploads();
+        }
+
+        function translateUploaded() {
+            if (uploadedFiles.length === 0) return;
+            fetch('/translate/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filenames: uploadedFiles.map(f => f.name) })
+            }).then(r => r.json()).then(data => {
+                if (data.error) { alert(data.error); return; }
+                uploadedFiles = [];
+                renderStagedUploads();
+                startStatusPolling();
+            });
+        }
+
+        function loadDriveFiles() {
+            document.getElementById('drive-loading').style.display = 'block';
+            document.getElementById('drive-content').style.display = 'none';
+            document.getElementById('drive-error').style.display = 'none';
+
+            fetch('/api/drive-files')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('drive-loading').style.display = 'none';
+                    if (data.error) {
+                        document.getElementById('drive-error').style.display = 'block';
+                        document.getElementById('drive-error').textContent = 'Error: ' + data.error;
+                        return;
+                    }
+                    driveFiles = data.files;
+                    renderDriveFiles();
+                });
+        }
+
+        function refreshDrive() {
+            driveFiles = [];
+            loadDriveFiles();
+        }
+
+        function renderDriveFiles() {
+            const container = document.getElementById('drive-files');
+            const driveContent = document.getElementById('drive-content');
+            const driveEmpty = document.getElementById('drive-empty');
+            const driveAction = document.getElementById('drive-action');
+
+            driveContent.style.display = 'block';
+
+            if (driveFiles.length === 0) {
+                container.innerHTML = '';
+                driveEmpty.style.display = 'block';
+                driveAction.style.display = 'none';
+                return;
+            }
+
+            driveEmpty.style.display = 'none';
+            container.innerHTML = driveFiles.map((f, i) => `
+                <li class="file-item">
+                    <div class="file-info">
+                        <div class="checkbox-wrap">
+                            <input type="checkbox" class="drive-checkbox" data-index="${i}" onchange="updateDriveCount()">
+                        </div>
+                        <div class="file-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        </div>
+                        <div class="file-details">
+                            <div class="file-name">${f.name}</div>
+                            <div class="file-meta">${f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString() : ''}</div>
+                        </div>
+                    </div>
+                </li>
+            `).join('');
+
+            driveAction.style.display = 'none';
+        }
+
+        function toggleAllDrive(checked) {
+            document.querySelectorAll('.drive-checkbox').forEach(cb => cb.checked = checked);
+            updateDriveCount();
+        }
+
+        function updateDriveCount() {
+            const checked = document.querySelectorAll('.drive-checkbox:checked').length;
+            const driveAction = document.getElementById('drive-action');
+            if (checked > 0) {
+                driveAction.style.display = 'flex';
+                document.getElementById('drive-count').textContent = `${checked} file(s) selected`;
+            } else {
+                driveAction.style.display = 'none';
+            }
+        }
+
+        function translateDrive() {
+            const selected = [];
+            document.querySelectorAll('.drive-checkbox:checked').forEach(cb => {
+                const idx = parseInt(cb.dataset.index);
+                selected.push({ id: driveFiles[idx].id, name: driveFiles[idx].name });
+            });
+
+            if (selected.length === 0) return;
+
+            fetch('/translate/drive', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: selected })
+            }).then(r => r.json()).then(data => {
+                if (data.error) { alert(data.error); return; }
+                document.querySelectorAll('.drive-checkbox').forEach(cb => cb.checked = false);
+                updateDriveCount();
+                startStatusPolling();
+            });
+        }
+
+        let claudeInterval = null;
+
+        let costInterval = null;
+
+        function startStatusPolling() {
+            document.getElementById('status-section').style.display = 'block';
+            if (statusInterval) clearInterval(statusInterval);
+            if (claudeInterval) clearInterval(claudeInterval);
+            if (costInterval) clearInterval(costInterval);
+            statusInterval = setInterval(pollStatus, 2000);
+            claudeInterval = setInterval(pollClaudeLog, 2500);
+            costInterval = setInterval(pollCostReport, 3000);
+            pollStatus();
+            pollClaudeLog();
+            pollCostReport();
+        }
+
+        function pollStatus() {
+            fetch('/api/status')
+                .then(r => r.json())
+                .then(status => {
+                    const section = document.getElementById('status-section');
+                    const bar = document.getElementById('status-bar');
+                    const text = document.getElementById('status-text');
+                    const progress = document.getElementById('progress-fill');
+                    const logBox = document.getElementById('log-box');
+
+                    if (status.running) {
+                        section.style.display = 'block';
+                        bar.className = 'status-bar';
+                        let msg = 'Translating...';
+                        if (status.current_file) msg = `Processing: ${status.current_file}`;
+                        if (status.total_pages > 0) msg += ` (page ${status.current_page}/${status.total_pages})`;
+                        text.textContent = msg;
+
+                        if (status.total_pages > 0) {
+                            progress.style.width = `${(status.current_page / status.total_pages * 100).toFixed(0)}%`;
+                        }
+                    } else if (status.log && status.log.length > 0) {
+                        bar.className = 'status-bar done';
+                        text.textContent = status.log[status.log.length - 1];
+                        progress.style.width = '100%';
+                        clearInterval(statusInterval);
+                        statusInterval = null;
+                        if (claudeInterval) { clearInterval(claudeInterval); claudeInterval = null; }
+                        if (costInterval) { clearInterval(costInterval); costInterval = null; }
+                        pollClaudeLog();
+                        pollCostReport();
+
+                        fetch('/api/translated-files').then(r => r.json()).then(data => {
+                            refreshTranslatedFiles(data.files);
+                        });
+                    } else {
+                        section.style.display = 'none';
+                    }
+
+                    logBox.innerHTML = (status.log || []).map(l => `<div class="log-line">${l}</div>`).join('');
+                    logBox.scrollTop = logBox.scrollHeight;
+                });
+        }
+
+        function toggleClaudeLog() {
+            claudeLogVisible = !claudeLogVisible;
+            const entries = document.getElementById('claude-entries');
+            const btn = document.getElementById('claude-toggle');
+            entries.style.display = claudeLogVisible ? 'block' : 'none';
+            btn.innerHTML = claudeLogVisible
+                ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg> Hide'
+                : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 15 12 9 18 15"/></svg> Show';
+        }
+
+        function pollClaudeLog() {
+            fetch('/api/claude-log')
+                .then(r => r.json())
+                .then(data => {
+                    const section = document.getElementById('claude-log-section');
+                    const entries = data.entries || [];
+
+                    if (entries.length === 0) {
+                        section.style.display = 'none';
+                        return;
+                    }
+
+                    section.style.display = 'block';
+                    document.getElementById('claude-empty').style.display = 'none';
+
+                    let totalIn = 0, totalOut = 0, totalCost = 0, errors = 0, successes = 0;
+                    entries.forEach(e => {
+                        if (e.status === 'success') { successes++; totalIn += (e.input_tokens || 0); totalOut += (e.output_tokens || 0); totalCost += (e.cost_usd || 0); }
+                        if (e.status === 'error') errors++;
+                    });
+
+                    const summaryEl = document.getElementById('claude-summary');
+                    if (successes > 0 || errors > 0) {
+                        summaryEl.style.display = 'flex';
+                        summaryEl.innerHTML = `
+                            <span class="claude-summary-item">${successes + errors} API call(s)</span>
+                            ${successes > 0 ? `<span class="claude-summary-item">${totalIn.toLocaleString()} input tokens</span>` : ''}
+                            ${successes > 0 ? `<span class="claude-summary-item">${totalOut.toLocaleString()} output tokens</span>` : ''}
+                            ${successes > 0 ? `<span class="claude-summary-item" style="color:#059669;font-weight:600">Total: $${totalCost.toFixed(4)}</span>` : ''}
+                            ${errors > 0 ? `<span class="claude-summary-item" style="color:#dc2626">${errors} error(s)</span>` : ''}
+                        `;
+                    }
+
+                    const container = document.getElementById('claude-entries');
+                    container.innerHTML = entries.map(e => {
+                        let details = '';
+                        if (e.status === 'success') {
+                            const costStr = e.cost_usd != null ? `$${e.cost_usd.toFixed(4)}` : '';
+                            details = `<div class="claude-details">
+                                <span class="claude-detail">Model: ${e.model || '?'}</span>
+                                <span class="claude-detail">In: ${(e.input_tokens || 0).toLocaleString()} tok</span>
+                                <span class="claude-detail">Out: ${(e.output_tokens || 0).toLocaleString()} tok</span>
+                                <span class="claude-detail">${e.input_chars} chars in</span>
+                                <span class="claude-detail">${e.output_chars} chars out</span>
+                                <span class="claude-detail">${e.elapsed_sec}s</span>
+                                ${costStr ? `<span class="claude-detail" style="color:#059669;font-weight:600">${costStr}</span>` : ''}
+                            </div>`;
+                        } else if (e.status === 'error') {
+                            details = `<div class="claude-error-msg">${e.error || 'Unknown error'}</div>`;
+                        } else {
+                            details = `<div class="claude-details"><span class="claude-detail">Sending ${e.input_chars} chars...</span></div>`;
+                        }
+                        return `<div class="claude-entry ${e.status}">
+                            <div class="claude-entry-header">
+                                <span class="claude-timestamp">${e.timestamp || ''}</span>
+                                <span class="claude-label">${e.label || ''}</span>
+                                <span class="claude-badge ${e.status}">${e.status}</span>
+                            </div>
+                            ${details}
+                        </div>`;
+                    }).join('');
+                    container.scrollTop = container.scrollHeight;
+                });
+        }
+
+        function pollCostReport() {
+            fetch('/api/cost-report')
+                .then(r => r.json())
+                .then(data => {
+                    const section = document.getElementById('cost-report-section');
+                    const docs = data.documents || [];
+
+                    if (docs.length === 0) {
+                        section.style.display = 'none';
+                        return;
+                    }
+
+                    section.style.display = 'block';
+                    const content = document.getElementById('cost-report-content');
+
+                    let html = '';
+
+                    docs.forEach((d, di) => {
+                        const ec = d.element_counts || {};
+                        const pt = d.phase_timing || {};
+                        const bc = d.backend_costs || {};
+                        const pd = d.page_details || [];
+                        const hasDetails = pd.length > 0 || pt.total_sec > 0;
+
+                        html += `<div style="margin-bottom:24px;${di > 0 ? 'border-top:2px solid #e5e7eb;padding-top:20px;' : ''}">`;
+                        html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                            <div>
+                                <span style="font-weight:600;font-size:15px;color:#1a1a2e;">${d.filename}</span>
+                                <span class="cost-badge ${d.status}" style="margin-left:8px;">${d.status}</span>
+                            </div>
+                            ${hasDetails ? `<button class="toggle-btn" onclick="toggleCostDetails(${di})" id="cost-toggle-${di}">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                Details
+                            </button>` : ''}
+                        </div>`;
+
+                        html += `<div class="cost-summary-grid">`;
+
+                        html += `<div class="cost-summary-card">
+                            <div class="cost-summary-label">Elements Processed</div>
+                            <div class="cost-summary-row"><span>${ec.text_blocks || 0} text blocks</span></div>
+                            <div class="cost-summary-row"><span>${ec.tables || 0} tables</span></div>
+                            <div class="cost-summary-row"><span>${ec.images || 0} images</span></div>
+                            <div class="cost-summary-row" style="color:#6b7280;font-size:11px;margin-top:4px;">${d.pages} pages, ${d.api_calls} API calls</div>
+                        </div>`;
+
+                        html += `<div class="cost-summary-card">
+                            <div class="cost-summary-label">Processing Time</div>
+                            <div class="cost-summary-row"><span>Extraction:</span><span>${pt.extraction_sec || 0}s</span></div>
+                            <div class="cost-summary-row"><span>Translation:</span><span>${pt.translation_sec || 0}s</span></div>
+                            <div class="cost-summary-row"><span>Planning:</span><span>${pt.planning_sec || 0}s</span></div>
+                            <div class="cost-summary-row"><span>Assembly:</span><span>${pt.assembly_sec || 0}s</span></div>
+                            <div class="cost-summary-row" style="font-weight:600;border-top:1px solid #e5e7eb;padding-top:4px;margin-top:4px;"><span>Total:</span><span>${pt.total_sec || 0}s</span></div>
+                        </div>`;
+
+                        html += `<div class="cost-summary-card">
+                            <div class="cost-summary-label">Cost Breakdown</div>
+                            <div class="cost-summary-row"><span>Claude API:</span><span style="color:#8b5cf6;font-weight:600;">$${(d.api_cost_usd || d.total_cost_usd || 0).toFixed(4)}</span></div>
+                            <div class="cost-summary-row"><span>Compute (${pt.total_sec || 0}s):</span><span>$${(bc.compute_cost_usd || 0).toFixed(6)}</span></div>
+                            <div class="cost-summary-row"><span>Memory (${bc.peak_memory_mb || 0} MB):</span><span>$${(bc.memory_cost_usd || 0).toFixed(6)}</span></div>
+                            <div class="cost-summary-row cost-grand-total"><span>Grand Total:</span><span>$${(d.grand_total_usd || d.total_cost_usd || 0).toFixed(4)}</span></div>
+                        </div>`;
+
+                        html += `</div>`;
+
+                        if (hasDetails) {
+                            html += `<div id="cost-details-${di}" class="cost-details-panel" style="display:none;">`;
+
+                            html += `<div style="margin-bottom:12px;">
+                                <div style="font-weight:600;font-size:13px;color:#1a1a2e;margin-bottom:8px;">API Token Usage</div>
+                                <div class="cost-summary-grid" style="grid-template-columns:repeat(2,1fr);">
+                                    <div class="cost-summary-card">
+                                        <div class="cost-summary-row"><span>Input tokens:</span><span>${(d.total_input_tokens || 0).toLocaleString()}</span></div>
+                                        <div class="cost-summary-row"><span>Output tokens:</span><span>${(d.total_output_tokens || 0).toLocaleString()}</span></div>
+                                        <div class="cost-summary-row"><span>Model:</span><span style="font-size:11px;">${d.model || '-'}</span></div>
+                                    </div>
+                                    <div class="cost-summary-card">
+                                        <div class="cost-summary-row"><span>Avg total cost/page:</span><span style="font-weight:600;">$${d.pages > 0 ? ((d.grand_total_usd || d.total_cost_usd || 0) / d.pages).toFixed(4) : '0.0000'}</span></div>
+                                        <div class="cost-summary-row"><span>Avg tokens/page:</span><span>${d.pages > 0 ? Math.round((d.total_input_tokens + d.total_output_tokens) / d.pages).toLocaleString() : '0'}</span></div>
+                                        ${d.output_size_mb ? `<div class="cost-summary-row"><span>Output file:</span><span>${d.output_size_mb} MB</span></div>` : ''}
+                                    </div>
+                                </div>
+                            </div>`;
+
+                            if (pd.length > 0) {
+                                html += `<div style="font-weight:600;font-size:13px;color:#1a1a2e;margin-bottom:8px;">Per-Page Breakdown</div>`;
+                                html += `<table class="cost-table" style="font-size:12px;">
+                                    <thead><tr>
+                                        <th>Page</th>
+                                        <th>Text Blocks</th>
+                                        <th>Tables</th>
+                                        <th>Images</th>
+                                        <th>In Tokens</th>
+                                        <th>Out Tokens</th>
+                                        <th>Time</th>
+                                        <th>API Cost</th>
+                                        <th>Backend</th>
+                                        <th>Shared Costs</th>
+                                        <th>Total Cost</th>
+                                    </tr></thead><tbody>`;
+
+                                pd.forEach(p => {
+                                    const rowClass = p.skipped ? 'style="color:#9ca3af;"' : '';
+                                    html += `<tr ${rowClass}>
+                                        <td>${p.page_num}</td>
+                                        <td>${p.text_blocks}</td>
+                                        <td>${p.tables}</td>
+                                        <td>${p.images}</td>
+                                        <td>${p.skipped ? '-' : (p.input_tokens || 0).toLocaleString()}</td>
+                                        <td>${p.skipped ? '-' : (p.output_tokens || 0).toLocaleString()}</td>
+                                        <td>${p.skipped ? 'skipped' : (p.translate_sec || 0) + 's'}</td>
+                                        <td class="cost-value">${p.skipped ? '-' : '$' + (p.api_cost || 0).toFixed(4)}</td>
+                                        <td style="font-size:11px;color:#6b7280;">${p.skipped ? '-' : '$' + (p.compute_cost || 0).toFixed(6)}</td>
+                                        <td style="font-size:11px;color:#6b7280;">${p.skipped ? '-' : '$' + (p.overhead_cost || 0).toFixed(6)}</td>
+                                        <td class="cost-value" style="font-weight:700;">${p.skipped ? '-' : '$' + (p.total_cost || 0).toFixed(4)}</td>
+                                    </tr>`;
+                                });
+
+                                html += `</tbody></table>`;
+                            }
+
+                            html += `</div>`;
+                        }
+
+                        html += `</div>`;
+                    });
+
+                    if (docs.length > 1) {
+                        let grandApi = 0, grandCompute = 0, grandTotal = 0;
+                        docs.forEach(d => {
+                            grandApi += d.api_cost_usd || d.total_cost_usd || 0;
+                            grandCompute += d.compute_cost_usd || 0;
+                            grandTotal += d.grand_total_usd || d.total_cost_usd || 0;
+                        });
+                        html += `<div style="border-top:2px solid #059669;padding-top:12px;margin-top:8px;">
+                            <div class="cost-summary-grid" style="grid-template-columns:repeat(3,1fr);">
+                                <div class="cost-summary-card" style="background:#f0fdf4;">
+                                    <div class="cost-summary-label" style="color:#047857;">Total API Cost</div>
+                                    <div style="font-size:18px;font-weight:700;color:#047857;font-family:'SF Mono',Monaco,monospace;">$${grandApi.toFixed(4)}</div>
+                                </div>
+                                <div class="cost-summary-card" style="background:#f0fdf4;">
+                                    <div class="cost-summary-label" style="color:#047857;">Total Compute Cost</div>
+                                    <div style="font-size:18px;font-weight:700;color:#047857;font-family:'SF Mono',Monaco,monospace;">$${grandCompute.toFixed(6)}</div>
+                                </div>
+                                <div class="cost-summary-card" style="background:#ecfdf5;border:2px solid #059669;">
+                                    <div class="cost-summary-label" style="color:#047857;">Grand Total</div>
+                                    <div style="font-size:20px;font-weight:700;color:#047857;font-family:'SF Mono',Monaco,monospace;">$${grandTotal.toFixed(4)}</div>
+                                </div>
+                            </div>
+                        </div>`;
+                    }
+
+                    content.innerHTML = html;
+                });
+        }
+
+        function toggleCostDetails(idx) {
+            const panel = document.getElementById(`cost-details-${idx}`);
+            const btn = document.getElementById(`cost-toggle-${idx}`);
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 15 12 9 18 15"/></svg> Hide';
+            } else {
+                panel.style.display = 'none';
+                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg> Details';
+            }
+        }
+
+        function refreshTranslatedFiles(files) {
+            const container = document.getElementById('translated-files');
+            if (files.length === 0) {
+                container.innerHTML = `<div class="empty-state" id="no-files">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <p>No translated files yet</p>
+                </div>`;
+                return;
+            }
+            container.innerHTML = files.map(f => `
+                <li class="file-item">
+                    <div class="file-info">
+                        <div class="file-icon translated">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        </div>
+                        <div class="file-details">
+                            <div class="file-name">${f.name}</div>
+                            <div class="file-meta">${f.size}</div>
+                        </div>
+                    </div>
+                    <div class="file-actions">
+                        <a href="/download/${f.name}" class="btn btn-download">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Download
+                        </a>
+                    </div>
+                </li>
+            `).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/api/status').then(r => r.json()).then(status => {
+                if (status.running) {
+                    startStatusPolling();
+                } else if (status.log && status.log.length > 0) {
+                    document.getElementById('status-section').style.display = 'block';
+                    document.getElementById('status-bar').className = 'status-bar done';
+                    document.getElementById('status-text').textContent = status.log[status.log.length - 1];
+                    document.getElementById('progress-fill').style.width = '100%';
+                    document.getElementById('log-box').innerHTML = status.log.map(l => `<div class="log-line">${l}</div>`).join('');
+                }
+            });
+            pollClaudeLog();
+            pollCostReport();
+        });
+    </script>
+</body>
+</html>
